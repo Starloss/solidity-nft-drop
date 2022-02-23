@@ -44,7 +44,7 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
     /**
      *  @notice Mapping used for keeping a track of the users who can mint before the contract starts
      */
-    mapping(address => bool) whitelist;
+    mapping(address => bool) public whitelist;
 
     /**
      *  @notice Bytes32 used for roles in the Dapp
@@ -55,7 +55,7 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
     /**
      *  @notice Payable account used for withdraw the balance of the contract
      */
-    address payable owner;
+    address payable public owner;
 
     /// STATES
     /**
@@ -94,26 +94,12 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
      *  @notice Constructor function that initialice the contract and set de Hidden Uri
      */
     constructor() ERC721("Eyes", "EYE") {
+        _setupRole(ADMIN_ROLE, msg.sender);
+        _setRoleAdmin(MINTER_ROLE, ADMIN_ROLE);
+
         setHiddenMetadataUri("ipfs://Qmetig1Cdep14CmpfyM63aiErkSovse2ge7zxzXpnxVypB/hidden.json");
 
         owner = payable(msg.sender);
-
-        _setupRole(ADMIN_ROLE, msg.sender);
-        _setRoleAdmin(MINTER_ROLE, ADMIN_ROLE);
-    }
-
-    /**
-     *  @notice Function overrider for solving collission between ERC721 and AccessControl
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControl) returns (bool) {
-        return super.supportsInterface(interfaceId);
-    }
-
-    /**
-     *  @notice Function that returns the current supply
-     */
-    function totalSupply() public view returns (uint256) {
-        return supply.current();
     }
 
     /**
@@ -156,64 +142,6 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
     function burn(uint256 _tokenId) public whenNotPaused {
         require(ownerOf(_tokenId) == msg.sender);
         _burn(_tokenId);
-    }
-
-    /**
-     *  @notice Function that allows to see the wallet for an address
-     *  @param _owner is the address to consult
-     *  @return an array of uint256 with all the ID's that belong to the address
-     */
-    function walletOfOwner(address _owner)
-        public
-        view
-        returns (uint256[] memory)
-    {
-        uint256 ownerTokenCount = balanceOf(_owner);
-        uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
-        uint256 currentTokenId = 1;
-        uint256 ownedTokenIndex = 0;
-
-        while (ownedTokenIndex < ownerTokenCount && currentTokenId <= maxSupply) {
-            address currentTokenOwner = ownerOf(currentTokenId);
-
-            if (currentTokenOwner == _owner) {
-                ownedTokenIds[ownedTokenIndex] = currentTokenId;
-
-                ownedTokenIndex++;
-            }
-
-            currentTokenId++;
-        }
-
-        return ownedTokenIds;
-    }
-
-    /**
-     *  @notice Function that returns the URI for the token
-     *  @notice If the contract has not revealed yet, this will return the hidden uri
-     *  @param _tokenId is the ID of the token for retrieve his URI
-     *  @return an string with the correct URI
-     */
-    function tokenURI(uint256 _tokenId)
-        public
-        view
-        virtual
-        override
-        returns (string memory)
-    {
-        require(
-            _exists(_tokenId),
-            "ERC721Metadata: URI query for nonexistent token"
-        );
-
-        if (revealed == false) {
-            return hiddenMetadataUri;
-        }
-
-        string memory currentBaseURI = _baseURI();
-        return bytes(currentBaseURI).length > 0
-            ? string(abi.encodePacked(currentBaseURI, _tokenId.toString(), uriSuffix))
-            : "";
     }
 
     /**
@@ -298,11 +226,108 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
     }
 
     /**
+     *  @notice Function that allow the owner to start's the contract
+     */
+    function startContract() public onlyRole(ADMIN_ROLE) {
+        state = State.STARTED;
+    }
+
+    /**
      *  @notice Function that allow the owner to withdraw all the funds
      */
     function withdraw() public onlyRole(ADMIN_ROLE) {
         (bool success, ) = owner.call{value: address(this).balance}("");
         require(success);
+    }
+
+    /**
+     *  @notice Function overrider for solving collission between ERC721 and AccessControl
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     *  @notice Function that returns the current supply
+     */
+    function totalSupply() public view returns (uint256) {
+        return supply.current();
+    }
+
+    /**
+     *  @notice Function that allows to see the wallet for an address
+     *  @param _owner is the address to consult
+     *  @return an array of uint256 with all the ID's that belong to the address
+     */
+    function walletOfOwner(address _owner)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256 ownerTokenCount = balanceOf(_owner);
+        uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
+        uint256 currentTokenId = 1;
+        uint256 ownedTokenIndex = 0;
+
+        while (ownedTokenIndex < ownerTokenCount && currentTokenId <= maxSupply) {
+            address currentTokenOwner = ownerOf(currentTokenId);
+
+            if (currentTokenOwner == _owner) {
+                ownedTokenIds[ownedTokenIndex] = currentTokenId;
+
+                ownedTokenIndex++;
+            }
+
+            currentTokenId++;
+        }
+
+        return ownedTokenIds;
+    }
+
+    /**
+     *  @notice Function that returns the URI for the token
+     *  @notice If the contract has not revealed yet, this will return the hidden uri
+     *  @param _tokenId is the ID of the token for retrieve his URI
+     *  @return an string with the correct URI
+     */
+    function tokenURI(uint256 _tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        require(
+            _exists(_tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
+
+        if (revealed == false) {
+            return hiddenMetadataUri;
+        }
+
+        string memory currentBaseURI = _baseURI();
+        return bytes(currentBaseURI).length > 0
+            ? string(abi.encodePacked(currentBaseURI, _tokenId.toString(), uriSuffix))
+            : "";
+    }
+
+    /**
+     *  @notice Function that create a bool to check if a account address has the role admin
+     *  @param _account is the address to check
+     *  @return a bool, true if have the role, false otherwise
+     */ 
+    function isAdmin(address _account) public virtual view returns(bool) {
+        return hasRole(ADMIN_ROLE, _account);
+    }
+
+    /**
+     *  @notice Function that create a bool to check if a account address has the role minter
+     *  @param _account is the address to check
+     *  @return a bool, true if have the role, false otherwise
+     */ 
+    function isMinter(address _account) public virtual view returns(bool) {
+        return hasRole(MINTER_ROLE, _account);
     }
 
     /**
