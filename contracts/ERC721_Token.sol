@@ -195,11 +195,11 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
      *  @return an string with the correct URI
      */
     function tokenURI(uint256 _tokenId)
-    public
-    view
-    virtual
-    override
-    returns (string memory)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
     {
         require(
             _exists(_tokenId),
