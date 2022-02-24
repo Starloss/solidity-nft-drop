@@ -397,4 +397,41 @@ describe("ERC721 Token", () => {
             .revertedWith("The contract has not started yet!");
         });
     });
+
+    describe("Minting with ERC20 Iris token", () => {
+        let ERC20TokenFactory, ERC20Token;
+
+        beforeEach(async () => {
+            ERC20TokenFactory = await ethers.getContractFactory("ERC20Token");
+            ERC20Token = await ERC20TokenFactory.deploy(10);
+            await ERC721Token.setIrisAddress(ERC20Token.address);
+        });
+
+        describe("Deployment", () => {
+            it("Should set the right owner balance", async () => {
+                expect(await ERC20Token.balanceOf(owner.address)).to.be.equal(10);
+            });
+        });
+
+        describe("Minting", () => {
+            it("Should let mint", async () => {
+                await ERC20Token.connect(user1).mint(10, { value: ethers.utils.parseEther("0.01") });
+                expect(await ERC20Token.balanceOf(user1.address)).to.be.equal(10);
+            });
+
+            it("Should let mint the ERC721 token with the ERC20 token", async () => {
+                await ERC20Token.connect(user1).mint(10, { value: ethers.utils.parseEther("0.01") });
+                await ERC20Token.connect(user1).approve(ERC721Token.address, 10);
+                await network.provider.send("evm_mine");
+
+                await ERC721Token.startContract();
+                await ERC721Token.grantMinterRole(user1.address);
+                await ERC721Token.connect(user1).mintWithIris(1);
+                await network.provider.send("evm_mine");
+
+                let user1Wallet = await ERC721Token.walletOfOwner(user1.address);
+                expect(user1Wallet.length).to.be.equal(1);
+            });
+        });
+    });
 });
