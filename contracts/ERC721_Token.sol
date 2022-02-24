@@ -136,7 +136,6 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
         mintCompliance(_mintAmount)
         whenNotPaused
         contractStarted(msg.sender)
-        onlyRole(MINTER_ROLE)
     {
         ERC20Token iris = ERC20Token(irisTokenAddress);
         require(iris.allowance(msg.sender, address(this)) >= _mintAmount * irisCost);
