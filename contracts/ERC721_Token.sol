@@ -127,6 +127,10 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
         _mintLoop(msg.sender, _mintAmount);
     }
 
+    /**
+     *  @notice Function that allows to mint with the Iris token
+     *  @param _mintAmount is the amount of tokens to be minted
+     */
     function mintWithIris(uint256 _mintAmount)
         public
         mintCompliance(_mintAmount)
