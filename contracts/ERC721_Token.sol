@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./ERC20_Token.sol";
 
 contract ERC721Token is ERC721, Pausable, AccessControl {
     using Strings for uint256;
@@ -28,6 +29,7 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
      *  @notice Uint's used for the mint cost, the max amount of token and max amount of token per mint transaction
      */
     uint256 public cost = 0.01 ether;
+    uint256 public irisCost = 10;
     uint256 public maxSupply = 300;
     uint256 public maxMintAmountPerTx = 5;
 
@@ -56,6 +58,11 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
      *  @notice Payable account used for withdraw the balance of the contract
      */
     address payable public owner;
+
+    /**
+     *  @notice Address of the token accepted (Iris)
+     */
+    address public irisTokenAddress;
 
     /// STATES
     /**
@@ -116,6 +123,20 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
         onlyRole(MINTER_ROLE)
     {
         require(msg.value >= cost * _mintAmount, "Insufficient funds!");
+
+        _mintLoop(msg.sender, _mintAmount);
+    }
+
+    function mintWithIris(uint256 _mintAmount)
+        public
+        mintCompliance(_mintAmount)
+        whenNotPaused
+        contractStarted(msg.sender)
+        onlyRole(MINTER_ROLE)
+    {
+        ERC20Token iris = ERC20Token(irisTokenAddress);
+        require(iris.allowance(msg.sender, address(this)) >= _mintAmount * irisCost);
+        iris.transferFrom(msg.sender, address(this), _mintAmount * irisCost);
 
         _mintLoop(msg.sender, _mintAmount);
     }
@@ -238,6 +259,14 @@ contract ERC721Token is ERC721, Pausable, AccessControl {
     function withdraw() public onlyRole(ADMIN_ROLE) {
         (bool success, ) = owner.call{value: address(this).balance}("");
         require(success);
+    }
+
+    /**
+     *  @notice Function that sets the address of the Iris Token
+     *  @param _address is the address of the Iris Token contract
+     */
+    function setIrisAddress(address _address) public onlyRole(ADMIN_ROLE) {
+        irisTokenAddress = _address;
     }
 
     /**
